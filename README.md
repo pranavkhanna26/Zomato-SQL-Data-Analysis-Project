@@ -1,399 +1,204 @@
-/* ====================================================================================
-                                🍽️ ZOMATO DATA ANALYSIS 
-=======================================================================================
-   Author: Pranav Khanna
-   Description: End-to-end SQL analysis of Zomato delivery data including 
-                revenue trends, restaurant performance, and customer churn.
-==================================================================================== */
+# 🍽️ Zomato Customer & Business Analytics (SQL Case Study)
 
+An end-to-end SQL case study analyzing Zomato's customer, order, and restaurant data to diagnose slowing growth, inconsistent revenue, and declining customer retention — and to surface actionable, data-driven recommendations.
 
-/* ====================================================================================
-   DATABASE SCHEMA & SETUP
-==================================================================================== */
+![SQL](https://img.shields.io/badge/SQL-PostgreSQL-336791?style=flat-square&logo=postgresql&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Completed-success?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
 
--- 1. Customers Table
-CREATE TABLE customers(
-    Cutomer_id VARCHAR(50) PRIMARY KEY,
-    Cutomer_name VARCHAR(15),
-    City VARCHAR(10),
-    Signup_Time DATE,
-    Acquisition_channel VARCHAR(20)
-);
+---
 
-SET datestyle = 'ISO, DMY';
+## 📌 Business Problem
 
-COPY customers
-FROM 'C:\temp\Zomato_project_data\Zomato  Order Data.xlsx - Customer.csv'
-DELIMITER ','
-CSV HEADER
-NULL '';
+Zomato is one of India's largest food delivery platforms, connecting millions of customers with restaurants across multiple cities.
 
+Over the last few months, leadership has noticed a concerning pattern: the number of registered customers keeps growing, but **overall business performance isn't scaling with it**. Revenue growth has become inconsistent, customer retention appears to be slipping, and some restaurant partners are underperforming.
 
--- 2. Orders Table
-CREATE TABLE zomato_orders (
-    order_id VARCHAR(50) PRIMARY KEY,
-    customer_id VARCHAR(50),
-    restaurant_id VARCHAR(50),
-    order_timestamp DATE,
-    order_amount DECIMAL(10,2),
-    discount_amount DECIMAL(10,2),
-    delivery_fee INT,
-    payment_mode VARCHAR(50),
-    order_status VARCHAR(50)
-);
+As the Data Analyst brought in to investigate, the objective is to analyze customer, restaurant, and order data to answer leadership's key questions and turn raw transactional data into **actionable business insights**.
 
-SET datestyle = 'ISO, DMY';
+---
 
-COPY zomato_orders
-FROM 'C:\temp\Zomato_project_data\Zomato  Order Data.xlsx - Orders.csv'
-DELIMITER ','
-CSV HEADER
-NULL '';
+## 🎯 Objective
 
+Use SQL to analyze the underlying data and answer questions across six focus areas:
 
--- 3. Restaurants Table
-CREATE TABLE zomato_restaurants (
-    restaurant_id VARCHAR(50) PRIMARY KEY,
-    restaurant_name VARCHAR(100),
-    cuisine VARCHAR(100),
-    city VARCHAR(50),
-    avg_rating DECIMAL(3,1)
-);
+1. **Revenue Analysis** — how much are we making, and where is it coming from?
+2. **Customer Analysis** — who are our best customers, and how do we acquire them?
+3. **Restaurant Performance** — which partners are driving (or dragging down) the business?
+4. **Coupon Analysis** — are discounts actually helping us?
+5. **Cancellation & Refund Analysis** — how much are we losing to failed orders?
+6. **Customer Churn Analysis** — who's leaving, and what is it costing us?
 
-COPY zomato_restaurants
-FROM 'C:\temp\Zomato_project_data\Zomato  Order Data.xlsx - Restaurants.csv'
-DELIMITER ','
-CSV HEADER
-NULL '';
+---
 
+## 🗂️ Dataset
 
-/* ====================================================================================
-   SECTION 1: REVENUE & SALES ANALYSIS
-==================================================================================== */
+The data comes from an Excel workbook (`Zomato Order Data.xlsx`) with three sheets — `Customer`, `Orders`, `Restaurants` — imported into PostgreSQL as three relational tables.
 
-/* Q1: What is the total revenue? */
-SELECT SUM(order_amount) AS total_revenue
-FROM zomato_orders
-WHERE order_status = 'Delivered';
+### `customers`
+| Column               | Type          | Description                          |
+|-----------------------|--------------|----------------------------------------|
+| customer_id           | VARCHAR(50)  | Unique customer identifier (PK)        |
+| customer_name         | VARCHAR(15)  | Customer's name                        |
+| city                  | VARCHAR(10)  | Customer's city                        |
+| signup_time           | DATE         | Date the customer signed up            |
+| acquisition_channel   | VARCHAR(20)  | Channel through which customer joined  |
 
+### `zomato_orders`
+| Column            | Type           | Description                              |
+|-------------------|---------------|--------------------------------------------|
+| order_id          | VARCHAR(50)    | Unique order identifier (PK)               |
+| customer_id       | VARCHAR(50)    | FK → customers                             |
+| restaurant_id     | VARCHAR(50)    | FK → zomato_restaurants                    |
+| order_timestamp   | DATE           | Date the order was placed                  |
+| order_amount      | DECIMAL(10,2)  | Total order value                          |
+| discount_amount   | DECIMAL(10,2)  | Discount / coupon value applied            |
+| delivery_fee      | INT            | Delivery fee charged                       |
+| payment_mode      | VARCHAR(50)    | Payment method used                        |
+| order_status      | VARCHAR(50)    | Delivered / Cancelled / Refunded           |
 
-/* Q2: What are the monthly sales? */
-SELECT 
-    DATE_TRUNC('month', order_timestamp) AS Month, 
-    SUM(order_amount) AS Total_revenue
-FROM zomato_orders
-WHERE order_status = 'Delivered'
-GROUP BY DATE_TRUNC('month', order_timestamp)
-ORDER BY Month;
+### `zomato_restaurants`
+| Column           | Type           | Description                    |
+|------------------|---------------|----------------------------------|
+| restaurant_id    | VARCHAR(50)    | Unique restaurant identifier (PK) |
+| restaurant_name  | VARCHAR(100)   | Name of the restaurant           |
+| cuisine          | VARCHAR(100)   | Cuisine type                     |
+| city             | VARCHAR(50)    | City the restaurant operates in  |
+| avg_rating       | DECIMAL(3,1)   | Average customer rating          |
 
+**Entity relationship:**
+```
+customers (1) ───< (many) zomato_orders (many) >─── (1) zomato_restaurants
+```
 
-/* Q3: Which city contributes the highest revenue? */
-SELECT
-    c.City,
-    SUM(o.order_amount) AS total_revenue
-FROM customers c
-JOIN zomato_orders o
-    ON c.Cutomer_id = o.customer_id
-WHERE order_status = 'Delivered'
-GROUP BY City
-ORDER BY total_revenue DESC;
+---
 
+## 🛠️ Tools & Tech
 
-/* Q4: Which payment mode generates the most revenue? */
-SELECT
-    payment_mode,
-    SUM(order_amount) AS total_revenue
-FROM zomato_orders
-WHERE order_status = 'Delivered'
-GROUP BY payment_mode
-ORDER BY total_revenue DESC;
+- **Database:** PostgreSQL
+- **Language:** SQL
+- **Data Source:** CSV exports from an Excel workbook, bulk-loaded via `COPY`
 
+---
 
-/* Q5: What is the average order value (AOV)? */
-SELECT 
-    SUM(order_amount)/COUNT(DISTINCT order_id) AS average_order_value 
-FROM zomato_orders
-WHERE order_status = 'Delivered';
+## 🧩 SQL Concepts & Functions Used
 
+This project was built entirely in SQL, applying a broad range of core and intermediate techniques:
 
-/* ====================================================================================
-   SECTION 2: CUSTOMER BEHAVIOR & COHORT ANALYSIS
-==================================================================================== */
+| Category                     | Functions / Concepts Used                                                                 |
+|-------------------------------|--------------------------------------------------------------------------------------------|
+| **DDL (Schema Design)**       | `CREATE TABLE`, `PRIMARY KEY`, data types (`VARCHAR`, `DATE`, `DECIMAL`, `INT`)             |
+| **Data Import**               | `COPY ... FROM`, `DELIMITER`, `CSV HEADER`, `NULL`, `SET datestyle`                         |
+| **Aggregate Functions**       | `SUM()`, `COUNT()`, `COUNT(DISTINCT ...)`, `AVG()`, `MAX()`, `MIN()`                        |
+| **Window Functions**          | `ROW_NUMBER() OVER (ORDER BY ...)` — used for ranking (top 20 customers, bottom 5 restaurants, top churned customers) |
+| **Common Table Expressions**  | `WITH ... AS (...)` — including chained/nested CTEs for multi-step logic (e.g. churn analysis, revenue % calculations) |
+| **Conditional Logic**         | `CASE WHEN ... THEN ... ELSE ... END` — used for cancellation/refund rates and churn flags |
+| **Joins**                     | `INNER JOIN`, `CROSS JOIN`                                                                  |
+| **Date/Time Functions**       | `DATE_TRUNC()`, date arithmetic (`date1 - date2`) for recency/churn windows                 |
+| **Subqueries**                | Scalar subqueries (e.g. revenue % of top customers), `IN (SELECT ...)`                      |
+| **Numeric Functions**         | `ROUND()`                                                                                    |
+| **Filtering & Grouping**      | `WHERE`, `GROUP BY`, `ORDER BY`, `LIMIT`                                                     |
+| **Set-based Ranking Pattern** | Ranking inside a CTE, then filtering with an outer `WHERE rnk <= N` (Postgres-safe alternative to `QUALIFY`) |
 
-/* Q6: Who are the top 20 customers by revenue? */
-WITH cte AS (
-    SELECT customer_id, SUM(order_amount) AS Total_revenue
-    FROM zomato_orders
-    WHERE order_status = 'Delivered'
-    GROUP BY customer_id
-)
-SELECT customer_id, Total_revenue, "rank" 
-FROM (
-    SELECT customer_id, cte.Total_revenue, ROW_NUMBER() OVER(ORDER BY Total_revenue DESC) AS "rank" 
-    FROM cte
-) b
-WHERE "rank" <= 20;
+---
 
+## 📊 Business Questions Answered
 
-/* Q7: What percentage of revenue comes from the top customers? */
-WITH cte AS (
-    SELECT customer_id, SUM(order_amount) AS Total_revenue
-    FROM zomato_orders
-    WHERE order_status = 'Delivered'
-    GROUP BY customer_id
-),
-cte2 AS (
-    SELECT customer_id, Total_revenue, "rank" 
-    FROM (
-        SELECT customer_id, cte.Total_revenue, ROW_NUMBER() OVER(ORDER BY Total_revenue DESC) AS "rank" 
-        FROM cte
-    ) b
-    WHERE "rank" <= 20
-)
-SELECT 
-    ROUND(SUM(Total_revenue) * 100.0 / (
-        SELECT SUM(order_amount)
-        FROM zomato_orders
-        WHERE order_status = 'Delivered'
-    ), 2) AS pct_of_top_20_contribution
-FROM cte2;
+### 💰 Revenue Analysis
+- What is the total revenue?
+- What is the monthly revenue trend?
+- Which city contributes the highest revenue?
+- Which payment mode generates the most revenue?
+- What is the Average Order Value (AOV)?
 
+### 👤 Customer Analysis
+- Who are the top 20 customers by revenue?
+- What percentage of revenue comes from top customers?
+- Which acquisition channel brings the highest-value customers?
+- How many repeat customers do we have?
 
-/* Q8: Which acquisition channel brings the highest-value customers? */
-SELECT 
-    Acquisition_channel,
-    COUNT(DISTINCT Cutomer_id) AS total_customers
-FROM customers
-GROUP BY Acquisition_channel
-ORDER BY total_customers DESC;
+### 🏪 Restaurant Performance
+- Which restaurants generate the highest revenue?
+- Which restaurants receive the most orders?
+- Which cuisines are most popular?
+- Do highly-rated restaurants generate more revenue?
+- Which are the bottom 5 restaurants by revenue?
 
+### ❌ Cancellation & Refund Analysis
+- What is the overall cancellation rate?
+- What is the overall refund rate?
+- Which restaurants have the highest cancellation rate?
 
-/* Q9: How many repeat customers do we have per month? */
-WITH first_orders AS (
-    SELECT 
-        customer_id,
-        MIN(order_timestamp) AS first_time 
-    FROM zomato_orders
-    GROUP BY customer_id
-)
-SELECT 
-    DATE_TRUNC('month', a.order_timestamp) AS Month,
-    COUNT(DISTINCT a.customer_id) AS returning_customers
-FROM zomato_orders a
-JOIN first_orders b 
-    ON a.customer_id = b.customer_id 
-    AND DATE_TRUNC('month', a.order_timestamp) > DATE_TRUNC('month', b.first_time)
-GROUP BY 1
-ORDER BY Month DESC;
+### 🔁 Customer Churn Analysis
+- How many customers have churned (90+ days inactive)?
+- What is the overall customer churn rate?
+- Which city has the highest churn?
+- How much revenue is lost due to churn?
+- Who are the top 10 highest-value churned customers?
 
+### 🎟️ Coupon Analysis — *Planned / Not yet implemented*
+The problem statement also calls for coupon-related insights (% of orders using coupons, coupon users vs. non-coupon spend, city-wise coupon usage, and coupon impact on retention). The `discount_amount` column supports this, but these queries aren't in the current script yet — see [Future Scope](#-future-scope).
 
-/* ====================================================================================
-   SECTION 3: RESTAURANT PERFORMANCE
-==================================================================================== */
+---
 
-/* Q10: Which restaurant generates the highest revenue? */
-SELECT
-    r.restaurant_name,
-    SUM(o.order_amount) AS total_revenue
-FROM zomato_orders o
-JOIN zomato_restaurants r
-    ON r.restaurant_id = o.restaurant_id
-WHERE order_status = 'Delivered'
-GROUP BY r.restaurant_name
-ORDER BY total_revenue DESC;
+## 📁 Repository Structure
 
+```
+├── zomato_data_analysis.sql   # Full SQL script (schema + import + all analysis queries)
+└── README.md                 # Project documentation
+```
 
-/* Q11: Which restaurant gets the most orders? */
-SELECT 
-    restaurant_id, 
-    COUNT(DISTINCT order_id) AS Total_orders
-FROM zomato_orders
-WHERE order_status = 'Delivered'
-GROUP BY restaurant_id
-ORDER BY Total_orders DESC;
+---
 
+## ▶️ How to Run
 
-/* Q12: Which cuisine is the most popular? */
-SELECT
-    r.cuisine,
-    SUM(o.order_amount) AS total_revenue
-FROM zomato_orders o
-JOIN zomato_restaurants r
-    ON r.restaurant_id = o.restaurant_id
-WHERE order_status = 'Delivered'
-GROUP BY r.cuisine
-ORDER BY total_revenue DESC;
+1. Install [PostgreSQL](https://www.postgresql.org/download/) and a client such as pgAdmin or `psql`.
+2. Create a new database:
+   ```sql
+   CREATE DATABASE zomato_analysis;
+   ```
+3. Update the `COPY ... FROM` file paths in the script to point to your local CSV files.
+4. Run `zomato_data_analysis.sql` section by section (schema creation → data import → analysis queries).
 
+> **Note:** `COPY` requires the CSV files to be accessible to the PostgreSQL server itself, not just your client machine. If you don't have server-side file access, use `psql`'s `\copy` command instead, which reads from your local machine.
 
-/* Q13: Do highly rated restaurants generate the most revenue? */
-SELECT 
-    r.restaurant_name,
-    ROUND(AVG(r.avg_rating), 2) AS avg_rating,
-    SUM(o.order_amount) AS Total_revenue
-FROM zomato_orders o
-JOIN zomato_restaurants r
-    ON r.restaurant_id = o.restaurant_id
-WHERE order_status = 'Delivered'
-GROUP BY r.restaurant_name, avg_rating
-ORDER BY Total_revenue DESC;
+---
 
+## 💡 Key Insights *(fill in with your actual results once you run the queries)*
 
-/* Q14: What are the bottom 5 restaurants by revenue? */
-WITH cte AS (
-    SELECT 
-        r.restaurant_name,
-        ROUND(AVG(r.avg_rating), 2) AS avg_rating,
-        SUM(o.order_amount) AS Total_revenue
-    FROM zomato_orders o
-    JOIN zomato_restaurants r
-        ON r.restaurant_id = o.restaurant_id
-    WHERE order_status = 'Delivered'
-    GROUP BY r.restaurant_name
-)
-SELECT restaurant_name 
-FROM (
-    SELECT restaurant_name, Total_revenue, ROW_NUMBER() OVER (ORDER BY Total_revenue ASC) AS rnk 
-    FROM cte
-) b
-WHERE rnk <= 5;
+- Total revenue generated: `₹ ___`
+- Top revenue-generating city: `___`
+- Most popular payment mode: `___`
+- % of revenue from top 20 customers: `___%`
+- Cancellation rate: `___%` | Refund rate: `___%`
+- Customer churn rate: `___%`
+- Revenue at risk from churned customers: `₹ ___`
 
+---
 
-/* Q15: What is the overall cancellation and refund rate? */
-SELECT 
-    COUNT(DISTINCT CASE WHEN order_status = 'Cancelled' THEN order_id END) * 100.0 / COUNT(DISTINCT order_id) AS canc_rate,
-    COUNT(DISTINCT CASE WHEN order_status = 'Refunded' THEN order_id END) * 100.0 / COUNT(DISTINCT order_id) AS refund_rate
-FROM zomato_orders;
+## 🔭 Future Scope
 
+- **Coupon Analysis**: build out the four coupon-related questions from the problem statement using `discount_amount` (e.g. `discount_amount > 0` as a coupon-usage flag).
+- **Cancellation revenue impact**: quantify total revenue lost specifically to cancellations (separate from the churn revenue-loss metric already covered).
+- Visualization layer (Power BI / Tableau) on top of these SQL outputs for a stakeholder-facing dashboard.
 
-/* Q16: Which restaurant has the highest cancellation rate? */
-SELECT 
-    restaurant_id,
-    COUNT(DISTINCT CASE WHEN order_status = 'Cancelled' THEN order_id END) * 100.0 / COUNT(DISTINCT order_id) AS canc_rate
-FROM zomato_orders
-GROUP BY restaurant_id
-ORDER BY canc_rate DESC;
+---
 
+## 📌 Notes on Data Cleaning
 
-/* ====================================================================================
-   SECTION 4: CHURN ANALYSIS
-==================================================================================== */
+- Standardized column names to lowercase/snake_case (e.g. `Cutomer_id` → `customer_id`) for consistency and to avoid quoting issues in PostgreSQL.
+- All revenue-related metrics are filtered to `order_status = 'Delivered'` unless the query specifically analyzes cancellations or refunds.
+- `QUALIFY` (used in Snowflake/BigQuery for ranking filters) isn't supported in PostgreSQL — the script instead ranks inside a CTE and filters with an outer `WHERE rnk <= N`.
 
-/* Q17: How many customers have churned (90+ days no order)? */
-WITH global_last AS (
-    SELECT MAX(order_timestamp) AS last_txn_date 
-    FROM zomato_orders
-),
-cust_last AS (
-    SELECT 
-        customer_id,
-        MAX(order_timestamp) AS max_txn_date
-    FROM zomato_orders
-    GROUP BY customer_id
-)
-SELECT COUNT(*) AS inactive_customers
-FROM cust_last a
-CROSS JOIN global_last b
-WHERE (b.last_txn_date - a.max_txn_date) > 90;
+---
 
+## 🙋‍♂️ Author
 
-/* Q18: What is the customer churn rate? */
-WITH global_last AS (
-    SELECT MAX(order_timestamp) AS last_txn_date 
-    FROM zomato_orders
-),
-cust_last AS (
-    SELECT 
-        customer_id,
-        MAX(order_timestamp) AS max_txn_date
-    FROM zomato_orders
-    GROUP BY customer_id
-),
-churn AS (
-    SELECT *,
-        CASE 
-            WHEN (b.last_txn_date - a.max_txn_date) > 90 THEN 1 
-            ELSE 0 
-        END AS is_churn_tag
-    FROM cust_last a
-    CROSS JOIN global_last b
-)
-SELECT
-    SUM(is_churn_tag) * 100.0 / COUNT(*) AS Customer_churn_rate 
-FROM churn;
+**Pranav Khanna**
+📧 pranavkhanna2602@gmail.com 🔗 https://www.linkedin.com/in/pranav-khanna-057360346/ | 
 
+---
 
-/* Q19: Which city has the highest churn? */
-WITH global_last AS (
-    SELECT MAX(order_timestamp) AS last_txn_date 
-    FROM zomato_orders
-),
-cust_last AS (
-    SELECT 
-        a.customer_id,
-        b.City,
-        MAX(a.order_timestamp) AS max_txn_date
-    FROM zomato_orders a
-    JOIN customers b
-        ON b.Cutomer_id = a.customer_id
-    GROUP BY a.customer_id, b.City
-)
-SELECT 
-    City, 
-    COUNT(*) AS inactive_customers
-FROM cust_last a
-CROSS JOIN global_last b
-WHERE (b.last_txn_date - a.max_txn_date) > 90
-GROUP BY City
-ORDER BY COUNT(*) DESC;
+## 📄 License
 
-
-/* Q20: How much revenue is lost due to churn? */
-WITH global_last AS (
-    SELECT MAX(order_timestamp) AS last_txn_date 
-    FROM zomato_orders
-),
-cust_last AS (
-    SELECT 
-        customer_id,
-        MAX(order_timestamp) AS max_txn_date
-    FROM zomato_orders
-    GROUP BY customer_id
-),
-churn AS (
-    SELECT a.customer_id
-    FROM cust_last a
-    CROSS JOIN global_last b
-    WHERE (b.last_txn_date - a.max_txn_date) > 90
-)
-SELECT
-    SUM(order_amount) AS revenue_loss
-FROM zomato_orders
-WHERE customer_id IN (SELECT customer_id FROM churn);
-
-
-/* Q21: Who are the highest churned customers by revenue loss? */
-WITH global_last AS (
-    SELECT MAX(order_timestamp) AS last_txn_date 
-    FROM zomato_orders
-),
-cust_last AS (
-    SELECT 
-        customer_id,
-        MAX(order_timestamp) AS max_txn_date
-    FROM zomato_orders
-    GROUP BY customer_id
-),
-churn AS (
-    SELECT a.customer_id
-    FROM cust_last a
-    CROSS JOIN global_last b
-    WHERE (b.last_txn_date - a.max_txn_date) > 90
-)
-SELECT
-    customer_id,
-    SUM(order_amount) AS revenue_loss
-FROM zomato_orders
-WHERE customer_id IN (SELECT customer_id FROM churn)
-GROUP BY customer_id
-ORDER BY SUM(order_amount) DESC
-LIMIT 10;
+This project is licensed under the MIT License — feel free to use and adapt it.
